@@ -1,7 +1,12 @@
 import express from "express";
 import Station from "../models/Station.js";
+import { authMiddleware, adminOnly } from "../middlewares/auth.middleware.js";
 
 const router = express.Router();
+
+// --------------------
+// PUBLIC ROUTES
+// --------------------
 
 // GET /api/stations - fetch all stations with connected station names
 router.get("/", async (req, res) => {
@@ -13,8 +18,12 @@ router.get("/", async (req, res) => {
   }
 });
 
+// --------------------
+// ADMIN ROUTES (Protected)
+// --------------------
+
 // POST /api/stations - create a new station
-router.post("/", async (req, res) => {
+router.post("/", authMiddleware, adminOnly, async (req, res) => {
   const { name } = req.body;
 
   if (!name) {
@@ -37,12 +46,12 @@ router.post("/", async (req, res) => {
 });
 
 // POST /api/stations/connect - connect two stations
-router.post("/connect", async (req, res) => {
-  const { firstStation, secondStation, distance, cost } = req.body;
+router.post("/connect", authMiddleware, adminOnly, async (req, res) => {
+  const { firstStation, secondStation, distance, cost, travelTime } = req.body;
 
-  if (!firstStation || !secondStation || !distance || !cost) {
-    return res.status(400).json({ error: "All fields are required" });
-  }
+if (!firstStation || !secondStation || !distance || !cost) {
+  return res.status(400).json({ error: "All fields are required" });
+}
 
   try {
     const station1 = await Station.findById(firstStation);
@@ -61,17 +70,41 @@ router.post("/connect", async (req, res) => {
     );
 
     if (!alreadyConnected1) {
-      station1.connections.push({ station: secondStation, distance, cost });
+      station1.connections.push({ station: secondStation, distance, cost, travelTime });
     }
 
     if (!alreadyConnected2) {
-      station2.connections.push({ station: firstStation, distance, cost });
+      station2.connections.push({ station: firstStation, distance, cost, travelTime });
     }
 
     await station1.save();
     await station2.save();
 
     res.json({ message: "Stations connected successfully" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/stations/:id - update station details
+router.put("/api/stations/:id", authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const station = await Station.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+    });
+    if (!station) return res.status(404).json({ error: "Station not found" });
+    res.json(station);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/stations/:id - delete a station
+router.delete("/api/stations/:id", authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const station = await Station.findByIdAndDelete(req.params.id);
+    if (!station) return res.status(404).json({ error: "Station not found" });
+    res.json({ message: "Station deleted successfully" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

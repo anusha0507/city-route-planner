@@ -1,50 +1,53 @@
-// routes/auth.js
 import express from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import User from "../models/User.js";
+import Admin from "../models/Admin.js";
+import { authMiddleware, superAdminOnly } from "../middlewares/auth.middleware.js";
 
 const router = express.Router();
-const JWT_SECRET = process.env.JWT_SECRET || 'fallbacksecret';
 
-// Register
-
-router.post("/register", async (req, res) => {
+// Admin login
+router.post("/login", async (req, res) => {
   try {
-    const { username, password, role } = req.body;
+    const { username, password } = req.body;
+    const admin = await Admin.findOne({ username });
 
-    if (!username || !password) {
-      return res.status(400).json({ error: "Username and password required" });
-    }
+    if (!admin) return res.status(400).json({ error: "Admin not found" });
 
-    const existing = await User.findOne({ username });
-    if (existing) return res.status(400).json({ error: "Username already exists" });
+    const isMatch = await bcrypt.compare(password, admin.password);
+    if (!isMatch) return res.status(400).json({ error: "Invalid credentials" });
 
-    const hashed = await bcrypt.hash(password, 10);
+    const token = jwt.sign(
+      { id: admin._id, role: admin.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "1d" }
+    );
 
-    await User.create({
-      username,
-      password: hashed,
-      role: role || "user",
-    });
-
-    res.json({ message: "User registered successfully. Please login." });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.json({ token, role: admin.role });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 
-// Login
-router.post("/login", async (req, res) => {
-  const { username, password } = req.body;
-  const user = await User.findOne({ username });
-  if (!user) return res.status(400).json({ error: "Invalid credentials" });
+// Only superadmin can create new admins
+router.post("/create-admin", authMiddleware, superAdminOnly, async (req, res) => {
+  try {
+    const { username, password } = req.body;
 
-  const isMatch = await bcrypt.compare(password, user.password);
-  if (!isMatch) return res.status(400).json({ error: "Invalid credentials" });
+    const existing = await Admin.findOne({ username });
+    if (existing) return res.status(400).json({ error: "Admin already exists" });
 
-  const token = jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, { expiresIn: "1h" });
-  res.json({ token, role: user.role });
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const newAdmin = await Admin.create({
+      username,
+      password: hashedPassword,
+      role: "admin"
+    });
+
+    res.status(201).json({ message: "Admin created", admin: newAdmin });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 export default router;

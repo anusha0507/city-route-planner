@@ -5,6 +5,7 @@ const connectionSchema = new mongoose.Schema({
   station: { type: mongoose.Schema.Types.ObjectId, ref: "Station" },
   distance: Number,
   cost: Number,
+  travelTime: Number,
 });
 
 const stationSchema = new mongoose.Schema({

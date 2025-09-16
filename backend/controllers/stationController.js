@@ -22,10 +22,19 @@ export const createStation = async (req, res) => {
   }
 };
 
-// Connect two stations with distance and cost
+// Before pushing connections, check if they already exist
+const existingConnection1 = station1.connections.find(
+  conn => conn.station.toString() === station2._id.toString()
+);
+
+if (existingConnection1) {
+  return res.status(400).json({ message: 'Stations are already connected' });
+}
+
+// Connect two stations with distance, time and cost
 export const connectStations = async (req, res) => {
   try {
-    const { stationId1, stationId2, distance, cost } = req.body;
+    const { stationId1, stationId2, distance, cost, travelTime } = req.body;
 
     // Find both stations
     const station1 = await Station.findById(stationId1);
@@ -40,6 +49,7 @@ export const connectStations = async (req, res) => {
       station: station2._id,
       distance,
       cost,
+      travelTime
     });
 
     // Add connection from station2 to station1 (undirected graph)
@@ -47,6 +57,7 @@ export const connectStations = async (req, res) => {
       station: station1._id,
       distance,
       cost,
+      travelTime
     });
 
     await station1.save();

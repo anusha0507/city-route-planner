@@ -1,10 +1,12 @@
-// server.js
 import dotenv from 'dotenv';
 dotenv.config();
 
 import express from 'express';
 import cors from 'cors';
 import mongoose from 'mongoose';
+import bcrypt from "bcryptjs";
+import Admin from "./models/Admin.js";
+import { authMiddleware, adminOnly, superAdminOnly } from './middlewares/auth.middleware.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -30,26 +32,37 @@ mongoose.connect(process.env.MONGO_URI, {
   console.error('MongoDB connection error:', err);
 });
 
-//import auth routes
-import authRoutes from './routes/auth.js'
-import { authMiddleware, adminOnly } from './middlewares/auth.middleware.js';
+// superadmin seeding
+async function seedSuperAdmin() {
+  const super_password = process.env.SUPER_ADMIN_PASSWORD || "nimdarepus0011";
+  const exists = await Admin.findOne({ role: "superadmin" });
+  if (!exists) {
+    const hashedPassword = await bcrypt.hash(super_password, 10);
+    await Admin.create({
+      username: "superadmin",
+      password: hashedPassword,
+      role: "superadmin"
+    });
+    console.log(`✅ Superadmin created: username=superadmin, password=${super_password}`);
+  }
+}
 
+mongoose.connection.once("open", () => {
+  seedSuperAdmin();
+});
+
+// import auth routes
+import authRoutes from './routes/auth.js';
 app.use("/api/auth", authRoutes);
 
-
-// Import routes (stations)
+// Import routes
 import stationRoutes from './routes/stationRoutes.js';
 import shortestPathRoutes from './routes/shortestPath.js';
 
-app.use("/api/stations", authMiddleware, adminOnly, stationRoutes);
+// Protect station management with admin auth
+app.use("/api/stations", stationRoutes);
 app.use('/api/shortest-path', shortestPathRoutes);
 
-
-// Add other routes similarly, e.g., paths, users, etc.
-// import pathRoutes from './routes/pathRoutes.js';
-// app.use('/api/paths', pathRoutes);
-
-
 app.listen(PORT, () => {
-  console.log(`Server started on port ${PORT}`);
+  console.log(`🚀 Server started on port ${PORT}`);
 });

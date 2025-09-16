@@ -3,85 +3,123 @@ import Station from '../models/Station.js';
 
 const router = express.Router();
 
-// GET /api/shortest-path?from=<id1>&to=<id2>&type=distance|cost
+// GET /api/shortest-path?from=<id1>&to=<id2>
+// Returns shortest path by distance + total cost + total travel time of that path
 router.get('/', async (req, res) => {
-  const { from, to, type = 'distance' } = req.query;
+  const { from, to } = req.query;
 
   if (!from || !to) {
     return res.status(400).json({ error: 'Both from and to station IDs are required.' });
   }
 
-  if (!['distance', 'cost'].includes(type)) {
-    return res.status(400).json({ error: "Type must be either 'distance' or 'cost'." });
-  }
-
   try {
     const stations = await Station.find({});
-    const graph = {};
+    const distanceGraph = {};
+    const costGraph = {};
+    const timeGraph = {};
 
-    // Build adjacency list
+    // Build adjacency lists for distance, cost, and time
     stations.forEach((station) => {
-      graph[station._id.toString()] = station.connections.map((conn) => ({
-        node: conn.station.toString(),
-        weight: type === 'distance' ? conn.distance : conn.cost, // 👈 switch based on type
-      }));
+      const stationId = station._id.toString();
+      distanceGraph[stationId] = [];
+      costGraph[stationId] = [];
+      timeGraph[stationId] = [];
+      
+      station.connections.forEach((conn) => {
+        const connId = conn.station.toString();
+        distanceGraph[stationId].push({
+          node: connId,
+          weight: conn.distance
+        });
+        costGraph[stationId].push({
+          node: connId,
+          weight: conn.cost
+        });
+        timeGraph[stationId].push({
+          node: connId,
+          weight: conn.travelTime
+        });
+      });
     });
 
-    // Dijkstra’s algorithm
-    const distances = {};
-    const prev = {};
-    const visited = new Set();
-    const queue = new Set();
+    // Dijkstra's algorithm for shortest distance path
+    const dijkstra = (graph, start, end) => {
+      const distances = {};
+      const prev = {};
+      const visited = new Set();
+      const queue = new Set();
 
-    Object.keys(graph).forEach((key) => {
-      distances[key] = Infinity;
-      prev[key] = null;
-      queue.add(key);
-    });
+      Object.keys(graph).forEach((key) => {
+        distances[key] = Infinity;
+        prev[key] = null;
+        queue.add(key);
+      });
 
-    distances[from] = 0;
+      distances[start] = 0;
 
-    while (queue.size > 0) {
-      let current = [...queue].reduce((minNode, node) =>
-        distances[node] < distances[minNode] ? node : minNode
-      );
+      while (queue.size > 0) {
+        let current = [...queue].reduce((minNode, node) =>
+          distances[node] < distances[minNode] ? node : minNode
+        );
 
-      if (current === to) break;
-      queue.delete(current);
-      visited.add(current);
+        if (current === end) break;
+        queue.delete(current);
+        visited.add(current);
 
-      for (const neighbor of graph[current]) {
-        if (visited.has(neighbor.node)) continue;
+        for (const neighbor of graph[current]) {
+          if (visited.has(neighbor.node)) continue;
 
-        const newDist = distances[current] + neighbor.weight;
-        if (newDist < distances[neighbor.node]) {
-          distances[neighbor.node] = newDist;
-          prev[neighbor.node] = current;
+          const newDist = distances[current] + neighbor.weight;
+          if (newDist < distances[neighbor.node]) {
+            distances[neighbor.node] = newDist;
+            prev[neighbor.node] = current;
+          }
         }
       }
+
+      return { distances, prev };
+    };
+
+    // Calculate shortest path by distance
+    const { distances: distDistances, prev: distPrev } = dijkstra(distanceGraph, from, to);
+
+    if (distDistances[to] === Infinity) {
+      return res.status(404).json({ error: 'No path found between stations.' });
     }
 
-    // Build path
+    // Build the shortest distance path
     const path = [];
     let curr = to;
     while (curr) {
       path.unshift(curr);
-      curr = prev[curr];
+      curr = distPrev[curr];
     }
 
-    if (distances[to] === Infinity) {
-      return res.status(404).json({ error: 'No path found between stations.' });
+    // Calculate total cost and time for this specific path
+    let totalCost = 0;
+    let totalTime = 0;
+
+    for (let i = 0; i < path.length - 1; i++) {
+      const currentStation = path[i];
+      const nextStation = path[i + 1];
+      
+      // Find the connection between current and next station
+      const costConnection = costGraph[currentStation].find(conn => conn.node === nextStation);
+      const timeConnection = timeGraph[currentStation].find(conn => conn.node === nextStation);
+      
+      if (costConnection) totalCost += costConnection.weight;
+      if (timeConnection) totalTime += timeConnection.weight;
     }
 
     res.json({
-  from,
-  to,
-  path,
-  type,
-  ...(type === "distance"
-      ? { totalDistance: distances[to] }
-      : { totalCost: distances[to] })
-});
+      from,
+      to,
+      path,
+      totalDistance: distDistances[to],
+      totalCost: totalCost,
+      totalTime: totalTime,
+      pathType: 'shortest_distance'
+    });
 
   } catch (error) {
     console.error(error);

@@ -1,44 +1,43 @@
-// App.jsx
-import React, { useContext, useState } from "react";
-import AdminDashboard from "./components/AdminDashboard.jsx";
-import UserDashboard from "./components/UserDashboard.jsx";
-import Login from "./components/Login";
-import Register from "./components/Register.jsx";
-import { AuthContext, AuthProvider } from "./context/AuthContext.jsx";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import Layout from "./components/Layout";
+import Homepage from "./pages/HomePage";
+import ShortestPath from "./pages/ShortestPath";
+import AdminLogin from "./pages/AdminLogin";
+import AdminDashboard from "./pages/AdminDashboard";
+import ProtectedRoute, { SuperAdminRoute, AdminRoute } from "./components/ProtectedRoute";
 
-function AppContent() {
-  const { user, logout } = useContext(AuthContext);
-  const [showRegister, setShowRegister] = useState(false);
-
-  if (!user) {
-    return (
-      <div>
-        {showRegister ? (
-          <Register onRegistered={() => setShowRegister(false)} />
-        ) : (
-          <Login />
-        )}
-        <button onClick={() => setShowRegister(!showRegister)}>
-          {showRegister ? "Have an account? Login" : "No account? Register"}
-        </button>
-      </div>
-    );
-  }
-
+function App() {
   return (
-    <div>
-      <button onClick={logout}>Logout</button>
-      {user.role === "admin" ? <AdminDashboard /> : <UserDashboard />}
-    </div>
+    <Router>
+      <Layout>
+        <Routes>
+          {/* Public routes */}
+          <Route path="/" element={<Homepage />} />
+          <Route path="/shortest-path" element={<ShortestPath />} />
+          <Route path="/login" element={<AdminLogin />} />
+
+          {/* Protected routes */}
+           <Route
+            path="/admin"
+            element={
+              <AdminRoute>
+                <AdminDashboard/>
+              </AdminRoute>
+            }
+          />
+          {/*
+          <Route
+            path="/super-admin-panel"
+            element={
+              <SuperAdminRoute>
+                <div>Super Admin Panel Page</div>
+              </SuperAdminRoute>
+            }
+          /> */}
+        </Routes>
+      </Layout>
+    </Router>
   );
 }
 
-
-
-export default function App() {
-  return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
-  );
-}
+export default App;
