@@ -11,7 +11,7 @@ const Homepage = () => {
 
   useEffect(() => {
     axios
-      .get("http://localhost:5000/api/stations")
+      .get("https://city-route-planner.onrender.com/api/stations")
       .then((res) => setStations(res.data))
       .catch((err) => console.error("Error fetching stations:", err));
   }, []);
@@ -28,7 +28,7 @@ const Homepage = () => {
   // fetchLocations
   async function fetchLocations() {
     try {
-      const res = await axios.get("http://localhost:5000/api/stations");
+      const res = await axios.get("https://city-route-planner.onrender.com/api/stations");
       setLocation(res.data);
       console.log(res.data);
     } catch (err) {
@@ -182,7 +182,7 @@ const Homepage = () => {
               <ul className="stationName list-disc">
                 {location.map((loc) => (
                   <li key={loc._id} style={{ marginBottom: 20 }}>
-                    <strong className="text-cyan-900 py-4">{loc.name}</strong>
+                    <strong className="text-cyan-900 py-4 ">{loc.name}</strong>
                     {loc.connections && loc.connections.length > 0 ? (
                       <ul>
                         {loc.connections.map((conn, idx) => (

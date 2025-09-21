@@ -33,7 +33,7 @@ const ShortestPath = () => {
     const fetchStations = async () => {
       try {
         setStationsLoading(true);
-        const response = await axios.get("http://localhost:5000/api/stations");
+        const response = await axios.get("https://city-route-planner.onrender.com/api/stations");
         setStations(response.data);
       } catch (error) {
         console.error("Error fetching stations:", error);
@@ -68,7 +68,7 @@ const ShortestPath = () => {
       }
 
       const response = await axios.get(
-        `http://localhost:5000/api/shortest-path?from=${fromStationObj._id}&to=${toStationObj._id}&type=distance`
+        `https://city-route-planner.onrender.com/api/shortest-path?from=${fromStationObj._id}&to=${toStationObj._id}&type=distance`
       );
 
       if (response.data) {

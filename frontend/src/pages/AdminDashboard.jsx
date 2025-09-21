@@ -39,7 +39,7 @@ const AdminDashboard = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const response = await axios.get("http://localhost:5000/api/stations");
+      const response = await axios.get("https://city-route-planner.onrender.com/api/stations");
       const stationsData = response.data;
 
       setStations(stationsData);
@@ -84,7 +84,7 @@ const AdminDashboard = () => {
       const token = localStorage.getItem("token");
 
       await axios.post(
-        "http://localhost:5000/api/stations",
+        "https://city-route-planner.onrender.com/api/stations",
         {
           name: newStation.name.trim(),
         },
@@ -135,7 +135,7 @@ const AdminDashboard = () => {
 
     const token = localStorage.getItem('token');
 
-    const response = await axios.post('http://localhost:5000/api/stations/connect', {
+    const response = await axios.post('https://city-route-planner.onrender.com/api/stations/connect', {
       firstStation: newConnection.fromStation,    // Match backend field name
       secondStation: newConnection.toStation,     // Match backend field name
       distance: parseFloat(newConnection.distance),
